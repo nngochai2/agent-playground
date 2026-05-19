@@ -2,7 +2,7 @@
 
 ## What this project is
 
-A lightweight Python CLI tool that orchestrates an AI coding agent as part of an AI-assisted Development Loop (ADLC) on a legacy Java eInvoicing compliance system.
+A lightweight Python CLI tool that orchestrates an AI coding agent as part of an AI-assisted Development Loop (ADLC) on a legacy system.
 
 The orchestrator's job is deliberately minimal — it does not integrate with GitLab, Neo4j, or any other service directly. Those are all available as MCP servers that the agent uses autonomously. The orchestrator only does what the agent cannot do for itself:
 
