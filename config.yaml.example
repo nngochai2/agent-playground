@@ -1,0 +1,13 @@
+git:
+  repo_path: /path/to/your/java/repo
+  target_branch: origin/your-remote-branch
+
+agent:
+  preferred: copilot          # copilot | claude — overrides auto-detection
+  timeout_seconds: 1200
+
+verification:
+  type: stub                  # stub | docker (future)
+
+logging:
+  log_dir: .adlc-logs
