@@ -1,4 +1,4 @@
-# ADLC Orchestrator — Claude Code Handover
+# ADLC Orchestrator
 
 ## What this project is
 
@@ -44,16 +44,59 @@ adlc-orchestrator/
 
 ## How the developer uses it
 
-```bash
-python orchestrator.py --issue 1234
+This project sits at the implementation stage of the ADLC workflow. The upstream steps that produce its inputs are:
+
+```
+[ grill-me ]         interrogate UC, surface regulatory gaps
+      ↓
+[ to-prd ]           produce PRD GitLab issue with shape constraints
+      ↓
+  Solution Detailed Design  (manual — developer + analyst)
+      ↓
+[ draft-gherkin ]    generate scenario drafts from PRD + design + KG
+      ↓
+[ review-gherkin ]   tester reviews, routes flags, commits scenarios as failing tests
+      ↓
+[ decompose-issues ] break scenarios into GitLab issues with HITL/AFK labels,
+                     blocked-by links, and a parallel-start set file
+      ↓
+[ preflight-check ]  per issue — confirms blast radius, re-checks regulatory
+                     exposure, appends Copilot context block, finalises HITL/AFK label
+      ↓
+  ← this project takes over for AFK issues →
 ```
 
-Optional flags:
+After preflight, two tracks open:
+
+**AFK track — handled by this project:**
+
+For the parallel-start set (AFK issues with no open blockers), run the dispatcher with the file that `decompose-issues` wrote:
+
 ```bash
-python orchestrator.py --issue 1234 --agent copilot           # force Copilot CLI
-python orchestrator.py --issue 1234 --agent claude            # force Claude Code CLI
-python orchestrator.py --issue 1234 --title "Fix VAT rounding" # include title in branch name
-python orchestrator.py --issue 1234 --dry-run                 # print assembled prompt, do not invoke agent
+python dispatcher.py --issues-file parallel-start.txt
+```
+
+For a single issue or manual override:
+```bash
+python orchestrator.py --issue 1234
+python orchestrator.py --issue 1234 --agent copilot            # force Copilot CLI
+python orchestrator.py --issue 1234 --agent claude             # force Claude Code CLI
+python orchestrator.py --issue 1234 --title "Fix VAT rounding" # descriptive branch name
+python orchestrator.py --issue 1234 --dry-run                  # print assembled prompt, do not invoke agent
+```
+
+The agent opens the MR itself. The developer then reviews the diff, deploys to local WebSphere, walks the happy flow, and merges if satisfied.
+
+**HITL track — handled manually:**
+
+Developer implements the change directly, using the preflight context block in the issue as the scope guide. After implementation, runs `annotate-kg` to capture the decision rationale in the Document KG, then opens the MR manually.
+
+**Wave sequencing:**
+
+After each AFK wave merges, run `preflight-check` on the newly unblocked issues before dispatching the next wave. The code graph changes after every merge, so blast radius from decomposition time may be stale. The cycle repeats until the DAG is exhausted:
+
+```
+preflight → dispatch AFK wave → MRs merge → preflight next wave → dispatch → …
 ```
 
 `--title` is optional. Without it the branch is named `agent/<issue-id>`. With it: `agent/<issue-id>-<slugified-title>`. The orchestrator cannot fetch the title itself (no direct GitLab calls), so the developer supplies it when a descriptive branch name is wanted.
