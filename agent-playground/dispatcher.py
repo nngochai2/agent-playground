@@ -34,8 +34,15 @@ def _run_one(issue_id: str, agent_override: str | None) -> RunResult:
 @click.command()
 @click.option(
     "--issues",
-    required=True,
+    default=None,
     help="Comma-separated GitLab issue IDs to run in parallel.",
+)
+@click.option(
+    "--issues-file",
+    "issues_file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to a file with one issue ID per line (written by decompose-issues).",
 )
 @click.option(
     "--agent",
@@ -49,10 +56,20 @@ def _run_one(issue_id: str, agent_override: str | None) -> RunResult:
     is_flag=True,
     help="Print the commands that would run and exit.",
 )
-def main(issues: str, agent_override: str | None, dry_run: bool) -> None:
-    issue_ids = [i.strip() for i in issues.split(",") if i.strip()]
+def main(issues: str | None, issues_file: str | None, agent_override: str | None, dry_run: bool) -> None:
+    if issues and issues_file:
+        sys.exit("ERROR: pass --issues or --issues-file, not both.")
+    if not issues and not issues_file:
+        sys.exit("ERROR: one of --issues or --issues-file is required.")
+
+    if issues_file:
+        with open(issues_file) as f:
+            issue_ids = [line.strip() for line in f if line.strip()]
+    else:
+        issue_ids = [i.strip() for i in issues.split(",") if i.strip()]
+
     if not issue_ids:
-        sys.exit("ERROR: --issues must contain at least one issue ID.")
+        sys.exit("ERROR: no issue IDs found.")
 
     # Validate config exists and is well-formed before spawning anything.
     cfg_loader.load()
